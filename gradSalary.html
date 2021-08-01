@@ -1,0 +1,423 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="css/navstyles.css">
+    <style>
+        .bar {
+            fill: rgb(172, 201, 224);
+        }
+
+        .toolTip {
+            position: absolute;
+            display: none;
+            min-width: 80px;
+            height: auto;
+            background: none repeat scroll 0 0 #ffffff;
+            border: 1px solid #6F257F;
+            padding: 14px;
+            text-align: left;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v6.js"></script>
+    <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+
+<body width="100%" height="100%">
+    <div>
+        <h1> Does having a Masters degree pay off?</h1>
+
+        <p> </p>
+    </div>
+
+    <div class="pagination">
+        <a href="EmpSalary.html">Prev</a>
+        <a href="index.html">1</a>
+        <a href="EmpSalary.html">2</a>
+        <a href="gradSalary.html" class="active">3</a>
+        <a href="womeninstem.html">4</a>
+        <a href="womeninstem.html">Next</a>
+        <br />
+        <b> Please click on "Next" to move to the next view. </b>
+    </div>
+    <div class="row">
+        <p>
+            The charts below show the median salary comparision between undergraduates and graduates.<br/><br/>
+
+            When sorted by Median Salary, it's quite clear that the graduates are paid significantly higher than the undergraduates.
+            Some major clusters such as <b>Physical Sciences</b> and  <b>Biology & Life Sciences </b> have a significant increase in the salary.
+        </p>
+
+    </div>
+    <div id="selectMe"></div>
+    <div id="empsalchart" width="50%" height="70%" style="float: left"><svg width=800 height=800></svg> </div>
+    <div id="gradbarchart" width="50%" height="70%"><svg width=800 height=800 style="float:left"></svg> </div>
+    <script>
+
+        const colors = ["#800000", "#9A6324", "#808000", "#469990", "#000075",
+            "#e6194B", "#f58231", "#dcbeff", "#aaffc3", "#3cb44b",
+            "#42d4f4", "#4363d8", "#911eb4", "#f032e6", "#a9a9a9",
+            "#fabed4", "#ffd8b1", "fffac8", "#bfef45", "#ffe119"];
+
+        salaryChart();
+        var delayInMilliseconds = 1000; //1 second
+        setTimeout(function () {
+            showAnnotationsForEmpSalchart();
+        }, delayInMilliseconds);
+
+        gradChart();
+        setTimeout(function () {
+            showAnnotationsForGradSalchart();
+        }, delayInMilliseconds);
+
+
+
+        function salaryChart() {
+            var svg = d3.select("#empsalchart").select("svg"),
+                margin = 200,
+                width = svg.attr("width") - margin,
+                height = svg.attr("height") - 400;
+
+            svg.append("text")
+                .attr("transform", "translate(100,0)")
+                .attr("x", 50)
+                .attr("y", 50)
+                .attr("font-size", "24px")
+                .text("Median Salary");
+
+            var xScale = d3.scaleBand().range([0, width]).padding(0.4),
+                yScale = d3.scaleLinear().range([height, 0]);
+
+            var g = svg.append("g")
+                .attr("transform", "translate(" + 100 + "," + 50 + ")");
+            g.selectAll(".bar").transition().delay(750);
+
+            d3.csv("data/all-ages.csv").then(function (data) {
+
+                var salDataMap = d3.rollup(data, v => d3.mean(v, d => d.Median), d => d.Major_category);
+                var salData25Map = d3.rollup(data, v => d3.mean(v, d => d.P25th), d => d.Major_category);
+                var salData75Map = d3.rollup(data, v => d3.mean(v, d => d.P75th), d => d.Major_category);
+
+                var salData = Array.from(salDataMap, ([name, value]) => ({ name, value }));
+
+                var colorsMap = new Map();
+                salData.sort((a, b) => {
+                    return d3.ascending(a.name, b.name)
+                });
+
+                for (var j = 0; j < salData.length; j++) {
+
+                    colorsMap.set(salData[j].name, colors[j]);
+
+                }
+
+                for (var j = 0; j < salData.length; j++) {
+
+                    salData[j].p25 = Math.round(salData25Map.get(salData[j].name) / 1000);
+                    salData[j].p75 = Math.round(salData75Map.get(salData[j].name) / 1000);
+                    salData[j].value = Math.round(salData[j].value);
+
+                }
+
+                //console.log(salData);
+
+
+                salData.sort((a, b) => {
+                    return d3.descending(a.value, b.value)
+                });
+
+
+                //const color = d3.scaleOrdinal().range(d3.schemePaired);
+                xScale.domain(salData.map(function (d) { return d.name; }));    //domain(majorsMap);
+                // yScale.domain([0, 100]);
+                yScale.domain([0, d3.max(salData, d => d.value)]).nice();
+
+
+                g.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(xScale))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-.8em")
+                    .attr("dy", ".15em")
+                    .attr("transform", function (d) {
+                        return "rotate(-65)";
+                    })
+                    .append("text")
+                    .attr("y", height - 250)
+                    .attr("x", width - 100)
+                    .attr("text-anchor", "end")
+                    .attr("stroke", "black")
+                    .text("Majors");
+
+
+
+
+                g.append("g")
+                    .call(d3.axisLeft(yScale).tickFormat(function (d) {
+                        return d;
+                    })
+                        .ticks(10))
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", "-5.1em")
+                    .attr("text-anchor", "end")
+                    .attr("stroke", "black")
+                    .text("Median Salary in US Dollars");
+
+                g.selectAll(".bar")
+                    .data(salData)
+                    .enter().append("rect")
+                    //.sort((a,b) => d3.ascending(a[1], b[1]))
+                    .attr("class", "bar")
+                    .attr("x", function (d) { return xScale(d.name); })
+                    .attr("y", height)
+                    .attr("width", xScale.bandwidth())
+                    .attr("height", 0)
+                    .transition()
+                    .delay(500)
+                    .attr("height", function (d) { return height - yScale(d.value); })
+                    .attr("y", function (d) { return yScale(d.value); })
+                    .style("fill", function (d) { return colorsMap.get(d.name); });
+
+
+                //add tooltip for barchart  
+                var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+                g.selectAll(".bar").data(salData).on('mouseover', function (event, d) {
+                    tooltip
+                        .style("left", event.pageX - 50 + "px")
+                        .style("top", event.pageY - 70 + "px")
+                        .style("display", "inline-block")
+                        .html("<b>" + (d.name) + "</b>" + "<br>" + "Median: <b>$" + d.p25 + "K</b><br/>" + "25th percentile: <b>$" + d.p25 + "K</b><br/>" + "75th percentile: <b>$" + d.p75 + "K</b>")
+                        .on("mouseout", function (d) { tooltip.style("display", "none"); });
+                });
+
+                g.selectAll("text.bar")
+                    .data(salData)
+                    .enter().append("text")
+                    //.sort((a,b) => d3.ascending(a[1], b[1]))
+                    .attr("class", "bar")
+                    .attr("fill", "blue")
+                    .attr("text-anchor", "middle")
+                    .attr("x", function (d) { return xScale(d.name) + 10 })
+                    .attr("y", function (d) { return yScale(d.value) - 5; })
+                    .transition()
+                    .delay(800)
+                    .attr("font", "red")
+                    .text(function (d) { return "$" + Math.round(d.value / 1000)+"K"; });
+
+
+
+
+            });
+        }
+
+        function gradChart() {
+            var svg = d3.select("#gradbarchart").select("svg"),
+                margin = 200,
+                width = svg.attr("width") - margin,
+                height = svg.attr("height") - 400;
+
+            svg.append("text")
+                .attr("transform", "translate(100,0)")
+                .attr("x", 50)
+                .attr("y", 50)
+                .attr("font-size", "24px")
+                .text("Grad's Median Salary");
+
+            var xScale = d3.scaleBand().range([0, width]).padding(0.4),
+                yScale = d3.scaleLinear().range([height, 0]);
+
+            var g = svg.append("g")
+                .attr("transform", "translate(" + 100 + "," + 50 + ")");
+            g.selectAll(".bar").transition().delay(750);
+
+            d3.csv("data/grad-students.csv").then(function (data) {
+
+                var salDataMap = d3.rollup(data, v => d3.mean(v, d => d.Grad_median), d => d.Major_category);
+                var salData25Map = d3.rollup(data, v => d3.mean(v, d => d.Grad_P25), d => d.Major_category);
+                var salData75Map = d3.rollup(data, v => d3.mean(v, d => d.Grad_P75), d => d.Major_category);
+
+                var salData = Array.from(salDataMap, ([name, value]) => ({ name, value }));
+
+                var colorsMap = new Map();
+                salData.sort((a, b) => {
+                    return d3.ascending(a.name, b.name)
+                });
+
+                for (var j = 0; j < salData.length; j++) {
+
+                    colorsMap.set(salData[j].name, colors[j]);
+
+                }
+
+                for (var j = 0; j < salData.length; j++) {
+
+                    salData[j].p25 = Math.round(salData25Map.get(salData[j].name) / 1000);
+                    salData[j].p75 = Math.round(salData75Map.get(salData[j].name) / 1000);
+                    salData[j].value = Math.round(salData[j].value);
+
+                }
+
+                console.log(salData);
+
+
+                salData.sort((a, b) => {
+                    return d3.descending(a.value, b.value)
+                });
+
+
+                //const color = d3.scaleOrdinal().range(d3.schemePaired);
+                xScale.domain(salData.map(function (d) { return d.name; }));    //domain(majorsMap);
+                // yScale.domain([0, 100]);
+                yScale.domain([0, d3.max(salData, d => d.value)]).nice();
+
+
+                g.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(xScale))
+                    .selectAll("text")
+                    .style("text-anchor", "end")
+                    .attr("dx", "-.8em")
+                    .attr("dy", ".15em")
+                    .attr("transform", function (d) {
+                        return "rotate(-65)";
+                    })
+                    .append("text")
+                    .attr("y", height - 250)
+                    .attr("x", width - 100)
+                    .attr("text-anchor", "end")
+                    .attr("stroke", "black")
+                    .text("Majors");
+
+                g.append("g")
+                    .call(d3.axisLeft(yScale).tickFormat(function (d) {
+                        return d;
+                    })
+                        .ticks(10))
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", "-5.1em")
+                    .attr("text-anchor", "end")
+                    .attr("stroke", "black")
+                    .text("Grad's Median Salary in US Dollars");
+
+                g.selectAll(".bar")
+                    .data(salData)
+                    .enter().append("rect")
+                    //.sort((a,b) => d3.ascending(a[1], b[1]))
+                    .attr("class", "bar")
+                    .attr("x", function (d) { return xScale(d.name); })
+                    .attr("y", height)
+                    .attr("width", xScale.bandwidth())
+                    .attr("height", 0)
+                    .transition()
+                    .delay(1000)
+                    .attr("height", function (d) { return height - yScale(d.value); })
+                    .attr("y", function (d) { return yScale(d.value); })
+                    .style("fill", function (d) { return colorsMap.get(d.name); });
+                
+                    //add tooltip for barchart  
+                var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+                g.selectAll(".bar").data(salData).on('mouseover', function (event, d) {
+                    tooltip
+                        .style("left", event.pageX - 50 + "px")
+                        .style("top", event.pageY - 70 + "px")
+                        .style("display", "inline-block")
+                        .html("<b>" + (d.name) + "</b>" + "<br>" + "Median: <b>$" + d.p25 + "K</b><br/>" + "25th percentile: <b>$" + d.p25 + "K</b><br/>" + "75th percentile: <b>$" + d.p75 + "K</b>")
+                        .on("mouseout", function (d) { tooltip.style("display", "none"); });
+                });
+
+                g.selectAll("text.bar")
+                    .data(salData)
+                    .enter().append("text")
+                    //.sort((a,b) => d3.ascending(a[1], b[1]))
+                    .attr("class", "bar")
+                    .attr("text-anchor", "middle")
+                    .attr("x", function (d) { return xScale(d.name) + 10 })
+                    .attr("y", function (d) { return yScale(d.value) - 5; })
+                    .transition()
+                    .delay(1300)
+                    .text(function (d) { return "$" + Math.round(d.value / 1000) + "K"; });
+
+
+
+            });
+
+        }
+
+        function showAnnotationsForEmpSalchart() {
+
+
+
+            // Features of the annotation
+            const annotations = [
+                {
+                    note: {
+                        label: "1)Engineering ,  2)Computers & Mathematics, 3)Physical Sciences, 4)Business, 5)Health",
+                        title: "Top 5 Paid Major Clusters",
+                        align: "left",  // try right or left
+                        wrap: 150,  // try something smaller to see text split in several lines
+                        padding: 0  //More = text lower
+                        //subject: { radius: 270, radiusPadding: 10 }
+                    },
+                    color: ["red"],
+                    x: 500,
+                    y: 0,
+                    dy: 50,
+                    dx: 50,
+                    disable: ["connector"]
+                }
+            ]
+
+            // Add annotation to the chart
+            const makeAnnotations = d3.annotation()
+                .annotations(annotations)
+            var svg = d3.select("#empsalchart").select("svg").append("g")
+                .call(makeAnnotations)
+
+
+
+        }
+
+
+        function showAnnotationsForGradSalchart() {
+
+
+
+            // Features of the annotation
+            const annotations = [
+                {
+                    note: {
+                        label: "1)Engineering ,  2)Physical Sciences, 3)Computers & Mathematics, 4)Business, 5)Biology & Life Sciences",
+                        title: "Top 5 Paid Major Clusters for Graduate degree",
+                        align: "left",  // try right or left
+                        wrap: 150,  // try something smaller to see text split in several lines
+                        padding: 0  //More = text lower
+                        //subject: { radius: 270, radiusPadding: 10 }
+                    },
+                    color: ["red"],
+                    x: 500,
+                    y: -30,
+                    dy: 50,
+                    dx: 50,
+                    disable: ["connector"]
+                }
+            ]
+
+            // Add annotation to the chart
+            const makeAnnotations = d3.annotation()
+                .annotations(annotations)
+            var svg = d3.select("#gradbarchart").select("svg").append("g")
+                .call(makeAnnotations)
+
+
+
+        }
+
+
+    </script>
+</body>
+
+</html>

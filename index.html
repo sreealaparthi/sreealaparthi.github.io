@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html lang="en">
+
+<head>
+    <link rel="stylesheet" href="css/navstyles.css">
+
+    <style>
+        .row {
+            display: flex;
+        }
+
+        .column {
+            flex: 50%;
+        }
+
+        #diagram {
+            position: relative;
+            width: 410px;
+            height: 230px;
+            margin: auto;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted black;
+            /* If you want dots under the hoverable text */
+        }
+
+        /*  .tooltip {
+            background: #eee;
+            box-shadow: 0 0 5px #999999;
+            color: #333;
+            display: none;
+            font-size: 12px;
+            left: 160px;
+            padding: 10px;
+            position: absolute;
+            text-align: center;
+            top: 80px;
+            width: 100px;
+            z-index: 10;
+        }*/
+        div.tooltip-donut {
+            position: absolute;
+            text-align: center;
+            padding: .5rem;
+            background: #FFFFFF;
+            color: #313639;
+            border: 1px solid #313639;
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 1.3rem;
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <!-- Load d3.js -->
+    <script src="https://d3js.org/d3.v6.js"></script>
+    <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
+
+    <!-- Create a div where the graph will take place -->
+    <div class="row">
+        <h1> What is the popular college major choice in United States?</h1>
+    </div>
+    <div class="row">
+        <div class="column">
+            <p>
+                People make a college major choice based on the passion and/or money. Passion is always specific to an
+                individual whereas we can explore the salary and employment rate data to determine the best major
+                choice.
+                <br />Let us explore the major clusters using the data from the American Community Survey 2010-2012
+                Public Use Microdata Series.
+                <br />Data is downloaded from https://www.kaggle.com/tunguz/college-majors.
+                <br />
+                This is a interactive slideshow which helps people make a major choice based on the data.
+                The slideshow also analyses the survey data for women in STEM careers and graduate vs ungraduate salary comparision.
+            </p>
+        </div>
+
+    </div>
+    <div class="row">
+        <div class="pagination">
+            <a href="index.html" class="active">1</a>
+            <a href="EmpSalary.html">2</a>
+            <a href="gradSalary.html">3</a>
+            <a href="womeninstem.html">4</a>
+            <a href="EmpSalary.html">Next</a>
+            <br />
+            <b> Please click on "Next" to move to the next view. </b>
+        </div>
+    </div>
+
+
+    <div class="row">
+        <p>
+            The following pie chart displays the Major Cluster choices from 2010-2012. Each slice in the pie chart
+            represents the unique Major Cluster and the percentage of students choosing the Major from the Major
+            Cluster. There are 16 Major categories and each major category is represented by a different color.The colors will remain same throughout the slideshow. 
+            Hovering on the piechart gives the Major Cluster and the percentage of students enrolled into the major
+            cluster.
+        </p>
+
+    </div>
+    <div class="row">
+
+        <div id="my_dataviz" class="column"></div>
+        <div id="my_dataviz2" class="column">
+
+        </div>
+    </div>
+    <script>
+        const colors = ["#800000", "#9A6324", "#808000", "#469990", "#000075",
+            "#e6194B", "#f58231", "#dcbeff", "#aaffc3", "#3cb44b",
+            "#42d4f4", "#4363d8", "#911eb4", "#f032e6", "#a9a9a9",
+            "#fabed4", "#ffd8b1", "fffac8", "#bfef45", "#ffe119"];
+        piechart();
+
+        async function piechart() {
+            gdata = await d3.csv("data/all-ages.csv");
+
+            // Process Data 
+            var majorRollup = d3.rollup(gdata, v => d3.sum(v, d => d.Total), d => d.Major_category);
+            var totalSum = 0;
+            for (let [key, value] of majorRollup) {
+
+                totalSum = totalSum + value;
+            }
+            console.log("Total Sum : " + totalSum);
+
+            //Calculate percentages
+            let majorsMap = new Map();
+
+            for (let [key, value] of majorRollup) {
+                var nvalue = Math.round(value / totalSum * 100);
+                majorsMap.set(key, nvalue);
+                //console.log("majorsMap: " + key + " = " + value);
+            }
+
+            var colorsMap = new Map();
+            const mapSortByKeys = new Map([...majorsMap.entries()].sort((a, b) => d3.ascending(a[0], b[0])));
+            var j = 0;
+            for (let [key, value] of mapSortByKeys) {
+
+                colorsMap.set(key, colors[j]);
+                j = j + 1;
+
+            }
+
+            // sort by value
+            const mapSortByValues = new Map([...majorsMap.entries()].sort((a, b) => b[1] - a[1]));
+
+
+            // set the dimensions and margins of the graph
+            const width = 800,
+                height = 600,
+                margin = 40
+            ann = 200;
+
+            // The radius of the pieplot is half the width or half the height (smallest one). I subtract a bit of margin.
+            const radius = Math.min(width, height) / 2 - margin
+
+            // append the svg object to the div called 'my_dataviz'
+            const svg = d3.select("#my_dataviz")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${(width - ann) / 2}, ${height / 2})`);
+            svg.append("text")
+                .attr("text-anchor", "middle")
+                .text("Popular Major Clusters")
+                .attr("fill", "blue")
+                .attr("font-weight", "bold")
+                .attr("font-size", "20");
+
+
+            const data = mapSortByValues;//{a: 9, b: 20, c:30, d:8, e:12}
+
+            // set the color scale
+            const color = d3.scaleOrdinal().range(d3.schemePaired);
+
+
+            // Compute the position of each group on the pie:
+            const pie = d3.pie()
+                .value(function (d) { console.log("pie : " + d[1]); return d[1] })
+            const data_ready = pie(data)
+            // Now I know that group A goes from 0 degrees to x degrees and so on.
+
+            // shape helper to build arcs:
+            const arcGenerator = d3.arc()
+                .innerRadius(radius - 150)
+                .outerRadius(radius);
+
+            // Another arc that won't be drawn. Just for labels positioning
+            var outerArc = d3.arc()
+                .innerRadius(radius - 75)
+                .outerRadius(radius + 25)
+
+            var div = d3.select("body").append("div")
+                .attr("class", "tooltip-donut")
+                .style("opacity", 0);
+
+            // Build the pie chart: Basically, each part of the pie is a path that we build using the arc function.
+            var paths = svg
+                .selectAll('mySlices')
+                .data(data_ready)
+                .join('path')
+                .attr('d', arcGenerator)
+                .attr('fill', function (d) { return (colorsMap.get(d.data[0])) })
+                .attr("stroke", "black")
+                .style("stroke-width", "2px")
+                .style("opacity", 0.7)
+                .attr('transform', 'translate(0, 0)')
+                .on('mouseover', function (event, d) {
+                    d3.select(this).transition()
+                        .duration('50')
+                        .attr('opacity', '.85');
+                    //Makes the new div appear on hover:
+                    div.transition()
+                        .duration(50)
+                        .style("opacity", 1);
+                    var toolTip = d.data[0] + " : " + d.value + "%";
+
+                    div.html(toolTip)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 15) + "px");
+                })
+                .on('mouseout', function (d, i) {
+                    d3.select(this).transition()
+                        .duration('50')
+                        .attr('opacity', '1');
+                    //Makes the new div disappear:
+                    div.transition()
+                        .duration('50')
+                        .style("opacity", 0);
+                });
+
+            // Now add the annotation. Use the centroid method to get the best coordinates
+            svg
+                .selectAll('mySlices')
+                .data(data_ready)
+                .join('text')
+                .transition()
+                .duration(1000)
+                .text(function (d) { if (d.data[1] != 0) return d.data[1] + "%"; else return ""; })
+                .attr("transform", function (d) { return `translate(${arcGenerator.centroid(d)})` })
+                .style("text-anchor", "middle")
+                .style("font-size", 17);
+
+
+
+            showLegend(data, colorsMap);
+            showAnnotations();
+        }
+
+        function showAnnotations() {
+
+
+
+            // Features of the annotation
+            const annotations = [
+                {
+                    note: {
+                        label: "1)Business ,  2)Education, 3)Engineering, 4)Humanities & Liberal Arts, 5)Health",
+                        title: "Top 5 Popular Major Clusters",
+                        align: "left",  // try right or left
+                        wrap: 100,  // try something smaller to see text split in several lines
+                        padding: 0  //More = text lower
+                        //subject: { radius: 270, radiusPadding: 10 }
+                    },
+                    color: ["red"],
+                    x: 600,
+                    y: 100,
+                    dy: 50,
+                    dx: 50,
+                    disable: ["connector"]
+                }
+            ]
+
+            // Add annotation to the chart
+            const makeAnnotations = d3.annotation()
+                .annotations(annotations)
+            d3.select("#my_dataviz").select("svg")
+                .append("g")
+                .call(makeAnnotations)
+
+
+
+        }
+
+        function showLegend(data, colorsMap) {
+            // select the svg area
+            var legend = d3.select("#my_dataviz2").append("svg")
+                .attr("width", 500)
+                .attr("height", 600)
+
+            // create a list of keys
+            var keys = data.keys();
+            console.log("keys: " + keys);
+            // Usually you have a color scale in your chart already
+            //var color = d3.scaleOrdinal()
+            //  .range(d3.schemePaired);
+
+            var keyArray = Array.from(keys);
+
+            // Add one dot in the legend for each name.
+            legend.selectAll("mydots")
+                .data(data.keys())
+                .enter()
+                .append("circle")
+                .transition()
+                .duration(1000)
+                .attr("cx", 100)
+                .attr("cy", function (d, i) { var cy = 100 + i * 25; return (cy) }) // 100 is where the first dot appears. 25 is the distance between dots
+                .attr("r", 10)
+                .style("fill", function (d) { console.log("color is" + d); return colorsMap.get(d) })
+
+            // Add one dot in the legend for each name.
+            legend.selectAll("mylabels")
+                .data(keyArray)
+                .enter()
+                .append("text")
+                .transition()
+                .duration(1500)
+                .attr("x", 140)
+                .attr("y", function (d, i) { return 100 + i * 25 })
+                //  .style("fill", function(d){ return color(d)})
+                .text(function (d) { console.log("data :" + d); return d })
+                .attr("text-anchor", "left")
+                .style("alignment-baseline", "middle");
+
+            legend.selectAll("mylabels")
+                .data(data.values())
+                .enter()
+                .append("text")
+                .transition()
+                .duration(1500)
+                .attr("x", 400)
+                .attr("y", function (d, i) { return 100 + i * 25 })
+                //  .style("fill", function(d){ return color(d)})
+                .text(function (d) { if (d != 0) return d + "%"; else return "<1%"; })
+                .attr("text-anchor", "left")
+                .style("alignment-baseline", "middle")
+
+        }
+
+
+
+        $(document).ready(function () {
+
+            $('div.pagination > a')
+                .click(function (e) {
+                    $('div.pagination > a')
+                        .removeClass('active');
+                    $(this).addClass('active');
+                });
+        });
+
+
+
+    </script>
+
+</body>
+
+</html>
