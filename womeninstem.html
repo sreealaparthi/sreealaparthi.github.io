@@ -9,15 +9,16 @@
         }
     </style>
     <script src="https://d3js.org/d3.v6.js"></script>
+    <script src="https://rawgit.com/susielu/d3-annotation/master/d3-annotation.min.js"></script>
 
 <body width="100%" height="100%">
     <div>
         <h1> Women in STEM Careers</h1>
-        
-        <br/>
+
+        <br />
         <p> </p>
     </div>
-    
+
     <div class="pagination">
         <div class="pagination">
             <a href="gradSalary.html">Prev</a>
@@ -25,19 +26,22 @@
             <a href="EmpSalary.html">2</a>
             <a href="gradSalary.html">3</a>
             <a href="womeninstem.html" class="active">4</a>
-            <br/>
-            <br/>
-            <b> Please click on "Next" to move to the next view. </b> <br/><br/>
+            <br />
+            <br />
+            <b> Please click on "Next" to move to the next view. </b> <br /><br />
         </div>
-      </div>
-      <div>
+    </div>
+    <div>
 
-        The charts below display the median salary for women in STEM careers and  the percentage of women employed in the particular major cluster.
-        As you can see , women are underpaid when compared to the median salaries in the previous slides.<br/>
-        Women represent 50% of the population in the major category clusters such as  <b>Health, Biological & Life Science</b> and <b>Physical Sciences.</b> <br/>
-        Women population is less in the highly paid major category clusters such as <b>Engineering</b> and <b>Computer & Mathematics.</b>
+        The charts below display the median salary for women in STEM careers and the percentage of women employed in the
+        particular major cluster.
+        As you can see , women are underpaid when compared to the median salaries in the previous slides.<br />
+        Women represent 50% of the population in the major category clusters such as <b>Health, Biological & Life
+            Science</b> and <b>Physical Sciences.</b> <br />
+        Women population is less in the highly paid major category clusters such as <b>Engineering</b> and <b>Computer &
+            Mathematics.</b>
 
-      </div>
+    </div>
     <div id="selectMe"></div>
     <div id="empsalchart" width="50%" height="70%" style="float: left"><svg width=800 height=800></svg> </div>
     <div id="empbarchart" width="50%" height="70%"><svg width=800 height=800 style="float:left"></svg> </div>
@@ -47,10 +51,17 @@
             "#e6194B", "#f58231", "#dcbeff", "#aaffc3", "#3cb44b",
             "#42d4f4", "#4363d8", "#911eb4", "#f032e6", "#a9a9a9",
             "#fabed4", "#ffd8b1", "fffac8", "#bfef45", "#ffe119"];
-        
-        salaryChart();
-        empRateChart();
 
+        salaryChart();
+        var delayInMilliseconds = 2000; //2 seconds
+        setTimeout(function () {
+            showAnnotationsForEmpSalchart();
+        }, delayInMilliseconds);
+
+        empRateChart();
+        setTimeout(function () {
+            showAnnotationsForEmpRatechart();
+        }, delayInMilliseconds);
 
 
 
@@ -86,12 +97,12 @@
                 });
                 var index = -1;
                 for (var j = 0; j < salData.length; j++) {
-                    if (Number.isNaN(salData[j].value) || salData[j].value <= 0 ){
-                     index = j;
-                     continue;
+                    if (Number.isNaN(salData[j].value) || salData[j].value <= 0) {
+                        index = j;
+                        continue;
                     }
                     else
-                    colorsMap.set(salData[j].name, colors[j]);
+                        colorsMap.set(salData[j].name, colors[j]);
 
                 }
                 console.log("INDEX:" + index);
@@ -217,18 +228,18 @@
                 majorsData.sort((a, b) => {
                     return d3.ascending(a.name, b.name)
                 });
-                 var index = -1;
+                var index = -1;
                 for (var j = 0; j < majorsData.length; j++) {
-                     
-                    if (Number.isNaN(majorsData[j].value) ){
-                     index = j;
-                     continue;
+
+                    if (Number.isNaN(majorsData[j].value)) {
+                        index = j;
+                        continue;
                     }
                     else
-                    colorsMap.set(majorsData[j].name, colors[j]);
+                        colorsMap.set(majorsData[j].name, colors[j]);
 
                 }
-                if (index>=0)
+                if (index >= 0)
                     majorsData.splice(index, 1);
 
                 majorsData.sort((a, b) => {
@@ -236,7 +247,7 @@
                 });
 
                 var total = majorsMap.size;
-               // const color = d3.scaleOrdinal().range(d3.schemePaired);
+                // const color = d3.scaleOrdinal().range(d3.schemePaired);
                 xScale.domain(majorsData.map(function (d) { return d.name; }));    //domain(majorsMap);
                 yScale.domain([0, 100]);
 
@@ -307,6 +318,77 @@
 
         }
 
+        function showAnnotationsForEmpSalchart() {
+
+
+
+            // Features of the annotation
+            const annotations = [
+                {
+                    note: {
+                        label: "1)Engineering ,  2)Computers & Mathematics",
+                        title: "Top 2 Paid Major Clusters",
+                        align: "left",  // try right or left
+                        wrap: 150,  // try something smaller to see text split in several lines
+                        padding: 0  //More = text lower
+                        //subject: { radius: 270, radiusPadding: 10 }
+                    },
+                    color: ["red"],
+                    x: 500,
+                    y: 0,
+                    dy: 50,
+                    dx: 50,
+                    disable: ["connector"]
+                }
+            ]
+
+            // Add annotation to the chart
+            const makeAnnotations = d3.annotation()
+                .annotations(annotations)
+            var svg = d3.select("#empsalchart").select("svg").append("g")
+                .call(makeAnnotations)
+
+
+
+        }
+
+        async function showAnnotationsForEmpRatechart() {
+
+
+
+            // Features of the annotation
+            const annotations = [
+                {
+                    note: {
+                        label: "1)Health   2)Biology & Life Science",
+                        title: "Top 2 STEM Major choices for Women",
+                        align: "left",  // try right or left
+                        wrap: 100,  // try something smaller to see text split in several lines
+                        padding: 0  //More = text lower
+
+                        //subject: { radius: 270, radiusPadding: 10 }
+                    },
+
+                    color: ["red"],
+                    x: 500,
+                    y: 50,
+                    dy: 50,
+                    dx: 50,
+                    disable: ["connector"]
+                }
+            ]
+
+
+
+            // Add annotation to the chart
+            const makeAnnotations = d3.annotation()
+                .annotations(annotations)
+            var svg = d3.select("#empbarchart").select("svg").append("g")
+                .call(makeAnnotations)
+
+
+
+        }
 
     </script>
 </body>
